@@ -1,17 +1,56 @@
 import { StyleSheet, Text, View } from 'react-native'
-import React from 'react'
+import React, { useState } from 'react'
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { collection, query, where, onSnapshot, doc } from "firebase/firestore";
+import { db } from '../firebase';
+
 
 const ReadingCard = (props) => {
 
-    // TODO: Setup Realtime Listening for the specific day's readings
-    const { day } = props
+  // TODO: Setup Realtime Listening for the specific day's readings
+  const { day } = props
 
-    var dummyReadings = [
-        {id: "1", temp: 16, time: "12:00"},
-        {id: "2", temp: 14, time: "9:00"},
-        {id: "3", temp: 12, time: "6:00"}
-    ]
+  var dummyReadings = [
+      {id: "1", temp: 16, time: "12:00"},
+      {id: "2", temp: 14, time: "9:00"},
+      {id: "3", temp: 12, time: "6:00"}
+  ]
+
+  const [readings, setReadings] = useState([])
+
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("In view...so do something...")
+
+      //1. specify where we want the data to be added
+      const dayRef = doc(db, "days", day.id) //specific doc's ID
+
+      //2. specify the subcollection in this document
+      const readingRef = collection(dayRef, "readings")
+
+      const unsubscribe = onSnapshot(readingRef, (querySnapshot) => {
+
+        const readingData = [];
+
+        querySnapshot.forEach((doc) => {
+          readingData.push(doc.data());
+          console.log("Current readings", doc.data());
+        });
+
+        setReadings(readingData)
+
+      });
+
+      return () => {
+        //cleanup functions go here
+        console.log("out of view...");
+        unsubscribe() //this stops listening for data changes
+      };
+    }, [])
+  );
+
+  
 
   return (
     <View style={styles.card}>
@@ -22,11 +61,13 @@ const ReadingCard = (props) => {
       </Text>
 
       <View style={styles.readingsBlock}>
-        {dummyReadings.map((item) => (
+        {readings != [] ? (
+          readings.map((item) => (
             <View style={styles.readingBubble} key={item.id}>
                 <Text style={styles.readingText}>{item.temp}</Text>
             </View>
-        ))}
+          ))
+        ): <Text>No Readings Yet</Text>}
       </View>
       
     </View>
